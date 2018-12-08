@@ -1,9 +1,10 @@
 /* @flow */
-import * as t from 'babel-types';
 import type {Node} from 'babel-traverse';
 
 import type ConversionContext from './ConversionContext';
 import type {Options} from './createConversionContext';
+
+import type {Babel} from './';
 
 /**
  * Collects the program level pragmas which override the plugin options.
@@ -14,14 +15,15 @@ import type {Options} from './createConversionContext';
  * will return `false`, if any other flow-runtime pragmas are present or the file
  * does use flow, the function returns `true`.
  */
-export default function collectProgramOptions (context: ConversionContext, node: Node): boolean {
+export default function collectProgramOptions (context: ConversionContext, node: Node, babel: Babel): boolean {
+  const {types: t} = babel;
   if (t.isFile(node)) {
     node = node.program;
   }
-  const options = collectOptionsFromPragma(context, node);
+  const options = collectOptionsFromPragma(context, node, babel);
   if (!options) {
     // if we have no options, check to see whether flow is in use in this file
-    return !context.optInOnly && hasFlowNodes(node);
+    return !context.optInOnly && hasFlowNodes(node, babel);
   }
   else if (options.ignore) {
     return false;
@@ -41,7 +43,8 @@ export default function collectProgramOptions (context: ConversionContext, node:
 
 const HAS_FLOW = new Error('This is not really an error, we use it to bail out of t.traverseFast() early when we find a flow element, and yes, that is ugly.');
 
-function collectOptionsFromPragma (context: ConversionContext, node: Node): ? Options {
+function collectOptionsFromPragma (context: ConversionContext, node: Node, babel: Babel): ? Options {
+  const {types: t} = babel;
   const comments = node.leadingComments || node.comments;
   if (comments && comments.length > 0) {
     for (const comment of comments) {
@@ -69,16 +72,17 @@ function collectOptionsFromPragma (context: ConversionContext, node: Node): ? Op
   if (t.isProgram(node)) {
     const {body} = node;
     if (body.length > 0) {
-      return collectOptionsFromPragma(context, body[0]);
+      return collectOptionsFromPragma(context, body[0], babel);
     }
   }
 }
 
 
 
-function hasFlowNodes (node: Node): boolean {
+function hasFlowNodes (node: Node, babel: Babel): boolean {
+  const {types: t} = babel;
   try {
-    throwIfFlow(node);
+    throwIfFlow(node, babel);
     t.traverseFast(node, throwIfFlow);
     return false;
   }
@@ -92,7 +96,8 @@ function hasFlowNodes (node: Node): boolean {
   }
 }
 
-function throwIfFlow (node: Node) {
+function throwIfFlow (node: Node, babel: Babel) {
+  const {types: t} = babel;
   if (t.isFlow(node)) {
     throw HAS_FLOW;
   }

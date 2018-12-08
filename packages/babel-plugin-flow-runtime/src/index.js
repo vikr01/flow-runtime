@@ -15,13 +15,18 @@ import transform from './transform';
 import findIdentifiers from './findIdentifiers';
 import getTypeParameters from './getTypeParameters';
 
-export default function babelPluginFlowRuntime () {
+export type Babel = {
+  traverse: Function,
+  types: Object,
+};
+
+export default function babelPluginFlowRuntime (babel: Babel) {
   return {
     visitor: {
       Program (path: NodePath, state: Object) {
         const {opts} = state;
         const context = createConversionContext(opts || {});
-        if (!collectProgramOptions(context, path.node)) {
+        if (!collectProgramOptions(context, path.node, babel)) {
           return;
         }
         path.traverse(firstPassVisitors(context));
